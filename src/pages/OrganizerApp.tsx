@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useAppStore } from '@/store/appStore';
 import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Plus, TrendingUp, TrendingDown, Calendar, MapPin, BarChart3, Eye, DollarSign, Users, Ticket, Settings, Check, X, Bell, Sparkles } from 'lucide-react';
@@ -6,12 +6,15 @@ import { formatCurrency, cn, formatDate } from '@/utils';
 import CreateEventModal from './CreateEventModal';
 
 export default function OrganizerApp() {
-  const { events, salesData, priceSuggestions, applyPriceSuggestion } = useAppStore();
+  const { events, generatePriceSuggestions, applyPriceSuggestion, getSalesData } = useAppStore();
   const [activeTab, setActiveTab] = useState<'dashboard' | 'events' | 'pricing' | 'settings'>('dashboard');
   const [showCreateEvent, setShowCreateEvent] = useState(false);
   const [appliedSuggestions, setAppliedSuggestions] = useState<string[]>([]);
 
   const myEvents = events;
+  const priceSuggestions = useMemo(() => generatePriceSuggestions(), [events]);
+  const firstEventId = myEvents[0]?.id || 'event-001';
+  const chartSalesData = useMemo(() => getSalesData(firstEventId), [events, firstEventId]);
 
   const totalRevenue = myEvents.reduce((sum, e) => {
     const zoneRevenue = e.zones.reduce((zs, z) => zs + (z.totalSeats - z.availableSeats) * z.currentPrice, 0);
@@ -110,7 +113,7 @@ export default function OrganizerApp() {
                 </select>
               </div>
               <ResponsiveContainer width="100%" height={280}>
-                <AreaChart data={salesData['event-001'] || []}>
+                <AreaChart data={chartSalesData}>
                   <defs>
                     <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#d946ef" stopOpacity={0.3} />

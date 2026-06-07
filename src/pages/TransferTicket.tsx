@@ -15,6 +15,7 @@ export default function TransferTicket({ ticket, onClose }: Props) {
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [step, setStep] = useState<1 | 2>(1);
   const [success, setSuccess] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const event = events.find((e) => e.id === ticket.eventId);
   const filteredUsers = users.filter(
@@ -23,10 +24,12 @@ export default function TransferTicket({ ticket, onClose }: Props) {
 
   const handleConfirm = () => {
     if (!selectedUser) return;
-    const ok = transferTicket(ticket.id, selectedUser);
-    if (ok) {
+    const result = transferTicket(ticket.id, selectedUser);
+    if (result.success) {
       setSuccess(true);
       setTimeout(onClose, 2000);
+    } else {
+      setErrorMsg(result.message);
     }
   };
 
@@ -123,6 +126,11 @@ export default function TransferTicket({ ticket, onClose }: Props) {
 
               {step === 2 && (
                 <>
+                  {errorMsg && (
+                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+                      {errorMsg}
+                    </div>
+                  )}
                   <div className="bg-gray-50 rounded-xl p-4 mb-4">
                     <div className="flex items-center gap-3 mb-3">
                       <img

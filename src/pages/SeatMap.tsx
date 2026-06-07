@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { ArrowLeft, ZoomIn, ZoomOut, Eye } from 'lucide-react';
 import { EventItem, SeatZone, Seat } from '@/types';
 import { formatCurrency, cn } from '@/utils';
@@ -9,9 +10,10 @@ interface Props {
   onSelectSeat: (seat: Seat) => void;
   onBack: () => void;
   onShowView: () => void;
+  onConfirm?: () => void;
 }
 
-export default function SeatMap({ event, zone, selectedSeats, onSelectSeat, onBack, onShowView }: Props) {
+export default function SeatMap({ event, zone, selectedSeats, onSelectSeat, onBack, onShowView, onConfirm }: Props) {
   const zoneSeats = event.seats.filter((s) => s.zoneId === zone.id);
   const rows = [...new Set(zoneSeats.map((s) => s.row))].sort();
   const [scale, setScale] = useState(1);
@@ -121,7 +123,16 @@ export default function SeatMap({ event, zone, selectedSeats, onSelectSeat, onBa
             <button onClick={onBack} className="px-6 py-2.5 border border-gray-200 rounded-xl font-medium text-gray-700 hover:bg-gray-50">
               返回
             </button>
-            <button className="px-8 py-2.5 bg-gradient-to-r from-primary-500 to-primary-700 text-white font-medium rounded-xl hover:shadow-lg transition">
+            <button
+              onClick={onConfirm}
+              disabled={selectedSeats.length === 0}
+              className={cn(
+                'px-8 py-2.5 font-medium rounded-xl transition',
+                selectedSeats.length > 0
+                  ? 'bg-gradient-to-r from-primary-500 to-primary-700 text-white hover:shadow-lg'
+                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+              )}
+            >
               确认选座
             </button>
           </div>

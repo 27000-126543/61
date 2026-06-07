@@ -10,7 +10,7 @@ import {
 import { formatCurrency, cn } from '@/utils';
 
 export default function AdminApp() {
-  const { events, tickets, users, volunteerApplications, volunteerJobs } = useAppStore();
+  const { events, tickets, users, volunteerApplications, volunteerJobs, getAdminStats } = useAppStore();
   const [selectedCity, setSelectedCity] = useState('全部');
   const [selectedVenue, setSelectedVenue] = useState('全部');
 
@@ -21,12 +21,14 @@ export default function AdminApp() {
     (e) => (selectedCity === '全部' || e.city === selectedCity) && (selectedVenue === '全部' || e.venue === selectedVenue)
   );
 
+  const adminStats = getAdminStats();
+
   const totalRevenue = filteredEvents.reduce((sum, e) => {
     return sum + e.zones.reduce((zs, z) => zs + (z.totalSeats - z.availableSeats) * z.currentPrice, 0);
-  }, 0);
-  const totalTickets = filteredEvents.reduce((sum, e) => sum + e.soldCount, 0);
-  const totalCapacity = filteredEvents.reduce((sum, e) => sum + e.totalCapacity, 0);
-  const avgAttendance = totalCapacity > 0 ? Math.round((totalTickets / totalCapacity) * 100) : 0;
+  }, 0) || adminStats.totalRevenue;
+  const totalTickets = filteredEvents.reduce((sum, e) => sum + e.soldCount, 0) || adminStats.totalTickets;
+  const totalCapacity = filteredEvents.reduce((sum, e) => sum + e.totalCapacity, 0) || adminStats.totalCapacity;
+  const avgAttendance = adminStats.avgAttendance;
 
   const memberCount = {
     normal: users.filter((u) => u.memberLevel === 'normal').length,
@@ -35,19 +37,9 @@ export default function AdminApp() {
     diamond: users.filter((u) => u.memberLevel === 'diamond').length
   };
 
-  const totalVolunteers = volunteerApplications.length;
-  const checkedInVolunteers = volunteerApplications.filter((a) => a.checkedIn).length;
-  const volunteerRate = totalVolunteers > 0 ? Math.round((checkedInVolunteers / totalVolunteers) * 100) : 0;
-
-  const weeklyForecast = [
-    { date: '周一', revenue: 285000, predicted: 310000 },
-    { date: '周二', revenue: 198000, predicted: 220000 },
-    { date: '周三', revenue: 342000, predicted: 360000 },
-    { date: '周四', revenue: 415000, predicted: 430000 },
-    { date: '周五', revenue: 0, predicted: 580000 },
-    { date: '周六', revenue: 0, predicted: 890000 },
-    { date: '周日', revenue: 0, predicted: 720000 }
-  ];
+  const volunteerRate = adminStats.volunteerRate;
+  const memberActiveRate = adminStats.memberActiveRate;
+  const weeklyForecast = adminStats.weeklyForecast;
 
   const cityData = [
     { city: '北京', revenue: 2850000, attendance: 87 },
@@ -67,8 +59,8 @@ export default function AdminApp() {
         totalRevenue,
         totalTickets,
         avgAttendance: `${avgAttendance}%`,
-        complaintRate: '0.8%',
-        memberActiveRate: '68%',
+        complaintRate: `${adminStats.complaintRate}%`,
+        memberActiveRate: `${memberActiveRate}%`,
         volunteerRate: `${volunteerRate}%`
       },
       events: filteredEvents.map((e) => ({
@@ -136,8 +128,8 @@ export default function AdminApp() {
           { label: '总营收', value: formatCurrency(totalRevenue), icon: DollarSign, color: 'from-green-500 to-emerald-600', trend: '+18.5%', trendUp: true },
           { label: '售票总数', value: `${totalTickets}`, icon: Ticket, color: 'from-primary-500 to-purple-600', trend: '+12.3%', trendUp: true },
           { label: '平均上座率', value: `${avgAttendance}%`, icon: Users, color: 'from-amber-500 to-orange-600', trend: '+5.2%', trendUp: true },
-          { label: '票务投诉率', value: '0.8%', icon: AlertTriangle, color: 'from-rose-500 to-pink-600', trend: '-0.3%', trendUp: true },
-          { label: '会员活跃度', value: '68%', icon: Activity, color: 'from-blue-500 to-cyan-600', trend: '+2.1%', trendUp: true },
+          { label: '票务投诉率', value: `${adminStats.complaintRate}%`, icon: AlertTriangle, color: 'from-rose-500 to-pink-600', trend: '-0.3%', trendUp: true },
+          { label: '会员活跃度', value: `${memberActiveRate}%`, icon: Activity, color: 'from-blue-500 to-cyan-600', trend: '+2.1%', trendUp: true },
           { label: '志愿者到岗率', value: `${volunteerRate}%`, icon: Star, color: 'from-teal-500 to-green-600', trend: '+4.5%', trendUp: true }
         ].map((s) => {
           const Icon = s.icon;

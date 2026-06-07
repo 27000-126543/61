@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Search, Filter, Flame, Calendar, MapPin, ChevronRight, Music, Theater, Trophy, ArrowRight, Star, Sparkles } from 'lucide-react';
 import { useAppStore } from '@/store/appStore';
 import { formatCurrency, getCategoryName, getCategoryColor, cn } from '@/utils';
@@ -6,11 +6,13 @@ import { EventCategory } from '@/types';
 import EventDetail from './EventDetail';
 import MemberCenter from './MemberCenter';
 import MyTickets from './MyTickets';
+import CheckInPage from './CheckInPage';
+import { QrCode } from 'lucide-react';
 
-type Tab = 'home' | 'tickets' | 'member';
+type Tab = 'home' | 'tickets' | 'member' | 'checkin';
 
 export default function UserApp() {
-  const { events, currentUser } = useAppStore();
+  const { events, currentUser, filters, setFilters, getFilteredEvents, getRecommendedEvents } = useAppStore();
   const [activeTab, setActiveTab] = useState<Tab>('home');
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [searchText, setSearchText] = useState('');
@@ -24,17 +26,23 @@ export default function UserApp() {
     { id: 'sports', name: '体育', icon: Trophy }
   ];
 
-  const filteredEvents = events.filter((e) => {
-    const matchSearch = !searchText || e.title.includes(searchText) || e.venue.includes(searchText);
-    const matchCategory = selectedCategory === 'all' || e.category === selectedCategory;
-    const matchPrice = e.priceRange.min <= priceRange[1] && e.priceRange.max >= priceRange[0];
-    return matchSearch && matchCategory && matchPrice;
-  });
+  const handleSearchChange = (text: string) => {
+    setSearchText(text);
+    setFilters({ keyword: text });
+  };
 
-  const recommendedEvents = events.filter((e) => {
-    if (!currentUser) return e.isHot;
-    return e.isHot || currentUser.preferences.includes(e.category);
-  }).slice(0, 4);
+  const handleCategoryChange = (cat: EventCategory | 'all') => {
+    setSelectedCategory(cat);
+    setFilters({ category: cat });
+  };
+
+  const handlePriceChange = (maxPrice: number) => {
+    setPriceRange([0, maxPrice]);
+    setFilters({ minPrice: 0, maxPrice });
+  };
+
+  const filteredEvents = useMemo(() => getFilteredEvents(), [filters, events]);
+  const recommendedEvents = useMemo(() => getRecommendedEvents(), [events, currentUser]);
 
   if (selectedEventId) {
     const event = events.find((e) => e.id === selectedEventId);
@@ -45,6 +53,7 @@ export default function UserApp() {
 
   if (activeTab === 'tickets') return <MyTickets />;
   if (activeTab === 'member') return <MemberCenter />;
+  if (activeTab === 'checkin') return <CheckInPage onBack={() => setActiveTab('home')} />;
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6 pb-28 lg:pb-6">
@@ -63,7 +72,7 @@ export default function UserApp() {
               type="text"
               placeholder="搜索演出、场馆、艺人..."
               value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
+              onChange={(e) => handleSearchChange(e.target.value)}
               className="flex-1 py-2 outline-none text-gray-900 placeholder-gray-400 bg-transparent"
             />
             <button className="px-6 py-2.5 bg-gradient-to-r from-primary-500 to-primary-600 text-white rounded-xl font-medium hover:shadow-lg transition">
@@ -79,7 +88,7 @@ export default function UserApp() {
           return (
             <button
               key={cat.id}
-              onClick={() => setSelectedCategory(cat.id)}
+              onClick={() => handleCategoryChange(cat.id)}
               className={cn(
                 'flex items-center gap-1.5 px-4 py-2 rounded-xl font-medium text-sm whitespace-nowrap transition',
                 selectedCategory === cat.id
@@ -98,9 +107,9 @@ export default function UserApp() {
           <input
             type="range"
             min="0"
-            max="3000"
+            max="10000"
             value={priceRange[1]}
-            onChange={(e) => setPriceRange([0, parseInt(e.target.value)])}
+            onChange={(e) => handlePriceChange(parseInt(e.target.value))}
             className="w-24 accent-primary-500"
           />
         </div>
@@ -209,6 +218,7 @@ export default function UserApp() {
           {[
             { id: 'home' as Tab, label: '首页', icon: Flame },
             { id: 'tickets' as Tab, label: '票夹', icon: Calendar },
+            { id: 'checkin' as Tab, label: '核销', icon: QrCode },
             { id: 'member' as Tab, label: '会员', icon: Star }
           ].map((item) => {
             const Icon = item.icon;

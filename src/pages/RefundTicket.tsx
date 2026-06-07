@@ -1,9 +1,8 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Ticket } from '@/types';
 import { useAppStore } from '@/store/appStore';
 import { X, RefreshCw, Check, AlertCircle, Info } from 'lucide-react';
 import { formatCurrency, cn, getDaysUntil } from '@/utils';
-import { refundRules } from '@/data/mockData';
 
 interface Props {
   ticket: Ticket;
@@ -11,34 +10,33 @@ interface Props {
 }
 
 export default function RefundTicket({ ticket, onClose }: Props) {
-  const { events, refundTicket, currentUser } = useAppStore();
+  const { events, requestRefund, calculateRefundFee, currentUser } = useAppStore();
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const event = events.find((e) => e.id === ticket.eventId);
   const daysUntil = event ? getDaysUntil(event.startTime) : 0;
 
-  const getRefundInfo = () => {
-    for (const rule of refundRules) {
-      if (daysUntil >= rule.daysBeforeEvent) {
-        return rule;
-      }
-    }
-    return refundRules[refundRules.length - 1];
-  };
-
-  const refundInfo = getRefundInfo();
-  const fee = Math.round(ticket.paidPrice * refundInfo.feeRate);
-  const refundAmount = ticket.paidPrice - fee;
+  const refundCalc = useMemo(() => calculateRefundFee(ticket.id), [ticket.id]);
+  const fee = refundCalc.fee;
+  const refundAmount = refundCalc.refundAmount;
+  const description = refundCalc.description;
 
   const handleSubmit = () => {
+    if (!reason) return;
     setSubmitting(true);
+    setErrorMsg(null);
     setTimeout(() => {
-      refundTicket(ticket.id);
+      const result = requestRefund(ticket.id, reason);
       setSubmitting(false);
-      setSuccess(true);
-      setTimeout(onClose, 2000);
+      if (result.success) {
+        setSuccess(true);
+        setTimeout(onClose, 2000);
+      } else {
+        setErrorMsg(result.message);
+      }
     }, 1000);
   };
 
@@ -77,7 +75,7 @@ export default function RefundTicket({ ticket, onClose }: Props) {
                   <div className="text-sm text-amber-800">
                     <p className="font-medium mb-1">退票规则</p>
                     <p>距离开演还有 <span className="font-bold">{daysUntil}</span> 天</p>
-                    <p className="mt-1">{refundInfo.description}</p>
+                    <p className="mt-1">{description}</p>
                   </div>
                 </div>
               </div>
@@ -89,7 +87,7 @@ export default function RefundTicket({ ticket, onClose }: Props) {
                 </div>
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-gray-500">
-                    手续费 ({Math.round(refundInfo.feeRate * 100)}%)
+                    手续费 ({Math.round(refundCalc.feeRate * 100)}%)
                     {memberFreeRefund && <span className="ml-1 text-green-600 text-xs">会员免除</span>}
                   </span>
                   <span className={cn(memberFreeRefund && 'line-through text-gray-400')}>-{formatCurrency(fee)}</span>
@@ -117,6 +115,12 @@ export default function RefundTicket({ ticket, onClose }: Props) {
                   </button>
                 ))}
               </div>
+
+              {errorMsg && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+                  {errorMsg}
+                </div>
+              )}
 
               <div className="flex items-start gap-2 p-3 bg-red-50 rounded-xl mb-4">
                 <AlertCircle size={18} className="text-red-500 mt-0.5 flex-shrink-0" />

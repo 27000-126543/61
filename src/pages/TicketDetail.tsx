@@ -11,15 +11,20 @@ interface Props {
 }
 
 export default function TicketDetail({ ticket, onBack }: Props) {
-  const { events, checkInAudience } = useAppStore();
-  const [checkedIn, setCheckedIn] = useState(false);
+  const { events, verifyAndCheckIn } = useAppStore();
+  const [checkedIn, setCheckedIn] = useState(ticket.status === 'used');
+  const [checkInMessage, setCheckInMessage] = useState<string | null>(null);
   const event = events.find((e) => e.id === ticket.eventId);
 
   if (!event) return null;
 
   const handleCheckIn = () => {
-    checkInAudience(ticket.id);
-    setCheckedIn(true);
+    const result = verifyAndCheckIn(ticket.qrCode || ticket.id);
+    setCheckInMessage(result.message);
+    if (result.success) {
+      setCheckedIn(true);
+    }
+    setTimeout(() => setCheckInMessage(null), 3000);
   };
 
   return (

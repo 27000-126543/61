@@ -4,6 +4,7 @@ import { EventItem, Seat, SeatStatus } from '@/types';
 import { formatCurrency, cn } from '@/utils';
 import { useAppStore } from '@/store/appStore';
 import SeatMap from './SeatMap';
+import PaymentPage from './PaymentPage';
 
 interface Props {
   event: EventItem;
@@ -11,12 +12,13 @@ interface Props {
 }
 
 export default function EventDetail({ event, onBack }: Props) {
-  const { buyTicket, currentUser } = useAppStore();
+  const { buyTicket, currentUser, selectSeats } = useAppStore();
   const [selectedZone, setSelectedZone] = useState<string | null>(event.zones[0]?.id || null);
   const [selectedSeats, setSelectedSeats] = useState<Seat[]>([]);
   const [showSeatMap, setShowSeatMap] = useState(false);
   const [showView, setShowView] = useState(false);
   const [liked, setLiked] = useState(false);
+  const [showPayment, setShowPayment] = useState(false);
   const [purchaseSuccess, setPurchaseSuccess] = useState(false);
 
   const handleSeatSelect = (seat: Seat) => {
@@ -29,21 +31,27 @@ export default function EventDetail({ event, onBack }: Props) {
     });
   };
 
-  const handlePurchase = () => {
-    if (!currentUser) return;
-    selectedSeats.forEach((seat) => {
-      const zone = event.zones.find((z) => z.id === seat.zoneId);
-      if (zone) buyTicket(event.id, seat.id, zone.id);
-    });
+  const handleConfirmSeats = () => {
+    if (selectedSeats.length === 0) return;
+    selectSeats(event.id, selectedSeats);
+    setShowPayment(true);
+  };
+
+  const handlePaymentSuccess = () => {
+    setShowPayment(false);
+    setSelectedSeats([]);
     setPurchaseSuccess(true);
     setTimeout(() => {
       setPurchaseSuccess(false);
-      setSelectedSeats([]);
     }, 3000);
   };
 
   const totalPrice = selectedSeats.reduce((sum, s) => sum + s.price, 0);
   const currentZone = event.zones.find((z) => z.id === selectedZone);
+
+  if (showPayment) {
+    return <PaymentPage onBack={() => setShowPayment(false)} onSuccess={handlePaymentSuccess} />;
+  }
 
   if (showSeatMap && currentZone) {
     return (
@@ -54,6 +62,7 @@ export default function EventDetail({ event, onBack }: Props) {
         onSelectSeat={handleSeatSelect}
         onBack={() => setShowSeatMap(false)}
         onShowView={() => setShowView(true)}
+        onConfirm={handleConfirmSeats}
       />
     );
   }
@@ -225,10 +234,16 @@ export default function EventDetail({ event, onBack }: Props) {
                   <span className="text-xl font-bold text-primary-600">{formatCurrency(totalPrice)}</span>
                 </div>
                 <button
-                  onClick={handlePurchase}
-                  className="w-full py-3.5 bg-gradient-to-r from-primary-500 to-primary-700 text-white font-medium rounded-xl hover:shadow-lg hover:shadow-primary-500/30 transition"
+                  onClick={handleConfirmSeats}
+                  disabled={selectedSeats.length === 0}
+                  className={cn(
+                    'w-full py-3.5 font-medium rounded-xl transition',
+                    selectedSeats.length > 0
+                      ? 'bg-gradient-to-r from-primary-500 to-primary-700 text-white hover:shadow-lg hover:shadow-primary-500/30'
+                      : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  )}
                 >
-                  确认支付
+                  {selectedSeats.length > 0 ? `确认支付 ${selectedSeats.length} 张票` : '请先选座'}
                 </button>
               </div>
             )}

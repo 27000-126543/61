@@ -114,7 +114,7 @@ export default function VolunteerApp() {
                   </div>
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <Clock size={14} className="text-gray-400" />
-                    <span>{job.startTime} - {job.endTime}（约{job.endTime.split(':')[0] - job.startTime.split(':')[0]}小时）</span>
+                    <span>{job.startTime} - {job.endTime}（约{parseInt(job.endTime.split(':')[0]) - parseInt(job.startTime.split(':')[0])}小时）</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <MapPin size={14} className="text-gray-400" />
