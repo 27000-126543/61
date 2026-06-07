@@ -3,33 +3,37 @@ import { ArrowLeft, CreditCard, Check, Shield, Clock, Ticket, Sparkles } from 'l
 import { useAppStore, PaymentInfo } from '@/store/appStore';
 import { formatCurrency, cn } from '@/utils';
 import { memberLevelConfig } from '@/data/mockData';
+import { EventItem, Seat } from '@/types';
 
 interface Props {
   onBack: () => void;
   onSuccess: () => void;
+  event?: EventItem;
+  seats?: Seat[];
 }
 
-export default function PaymentPage({ onBack, onSuccess }: Props) {
-  const { pendingSeats, pendingEventId, events, currentUser, processPayment, clearPendingSeats } = useAppStore();
+export default function PaymentPage({ onBack, onSuccess, event: propEvent, seats: propSeats }: Props) {
+  const { pendingSeats, pendingEventId, events, currentUser, processPayment, clearPendingSeats, selectSeats } = useAppStore();
   const [paymentMethod, setPaymentMethod] = useState<'wechat' | 'alipay' | 'card'>('wechat');
   const [processing, setProcessing] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const event = events.find((e) => e.id === pendingEventId);
+  const seats = propSeats && propSeats.length > 0 ? propSeats : pendingSeats;
+  const event = propEvent || events.find((e) => e.id === pendingEventId);
 
-  if (!event || pendingSeats.length === 0) {
+  if (!event || seats.length === 0) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-20 text-center">
-        <p className="text-gray-500 mb-4">未找到待支付订单</p>
+        <p className="text-gray-500 mb-4">未找到待支付订单（pendingSeats: ${pendingSeats.length}, propSeats: ${propSeats?.length || 0}）</p>
         <button onClick={onBack} className="px-6 py-2.5 bg-primary-500 text-white rounded-xl">
-          返回
+          返回选座
         </button>
       </div>
     );
   }
 
-  const originalTotal = pendingSeats.reduce((s, seat) => s + seat.price, 0);
+  const originalTotal = seats.reduce((s, seat) => s + seat.price, 0);
   const discount = currentUser ? 1 - (currentUser.memberLevel === 'normal' ? 1 : currentUser.memberLevel === 'silver' ? 0.95 : currentUser.memberLevel === 'gold' ? 0.9 : 0.85) : 0;
   const discountAmount = Math.round(originalTotal * discount);
   const finalTotal = originalTotal - discountAmount;
@@ -38,6 +42,8 @@ export default function PaymentPage({ onBack, onSuccess }: Props) {
     if (!currentUser) return;
     setProcessing(true);
     setError(null);
+
+    selectSeats(event.id, seats);
 
     setTimeout(() => {
       const paymentInfo: PaymentInfo = { method: paymentMethod };
@@ -63,7 +69,7 @@ export default function PaymentPage({ onBack, onSuccess }: Props) {
         </div>
         <h2 className="text-2xl font-bold text-gray-900 mb-2">支付成功！</h2>
         <p className="text-gray-500 mb-1">您的电子票已生成</p>
-        <p className="text-gray-400 text-sm">共 {pendingSeats.length} 张 · 实付 {formatCurrency(finalTotal)}</p>
+        <p className="text-gray-400 text-sm">共 {seats.length} 张 · 实付 {formatCurrency(finalTotal)}</p>
         <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-xl text-left">
           <p className="text-sm text-green-700 flex items-center gap-2">
             <Ticket size={16} /> 电子票已发送至您的票夹
@@ -97,7 +103,7 @@ export default function PaymentPage({ onBack, onSuccess }: Props) {
           </div>
         </div>
         <div className="mt-4 pt-4 border-t border-gray-100 space-y-2">
-          {pendingSeats.map((seat) => {
+          {seats.map((seat) => {
             const zone = event.zones.find((z) => z.id === seat.zoneId);
             return (
               <div key={seat.id} className="flex items-center justify-between text-sm">

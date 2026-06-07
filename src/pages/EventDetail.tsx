@@ -12,7 +12,7 @@ interface Props {
 }
 
 export default function EventDetail({ event, onBack }: Props) {
-  const { buyTicket, currentUser, selectSeats } = useAppStore();
+  const { buyTicket, currentUser, selectSeats, clearPendingSeats } = useAppStore();
   const [selectedZone, setSelectedZone] = useState<string | null>(event.zones[0]?.id || null);
   const [selectedSeats, setSelectedSeats] = useState<Seat[]>([]);
   const [showSeatMap, setShowSeatMap] = useState(false);
@@ -50,7 +50,14 @@ export default function EventDetail({ event, onBack }: Props) {
   const currentZone = event.zones.find((z) => z.id === selectedZone);
 
   if (showPayment) {
-    return <PaymentPage onBack={() => setShowPayment(false)} onSuccess={handlePaymentSuccess} />;
+    return (
+      <PaymentPage
+        onBack={() => { clearPendingSeats(); setShowPayment(false); }}
+        onSuccess={handlePaymentSuccess}
+        event={event}
+        seats={selectedSeats}
+      />
+    );
   }
 
   if (showSeatMap && currentZone) {
